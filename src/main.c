@@ -448,20 +448,15 @@ static void update_proc(Layer * layer, GContext * ctx) {
 
     graphics_context_set_fill_color(ctx, COMP3_BGCOLOR);
     graphics_fill_circle(ctx, infoCirc3, infoCircRadius);
-    graphics_context_set_stroke_color(ctx, FOREGROUND_COLOR); 
-    graphics_context_set_stroke_width(ctx, 1);
-
-    graphics_draw_circle(ctx, infoCirc1, infoCircRadius);
-    graphics_draw_circle(ctx, infoCirc2, infoCircRadius);
-    graphics_draw_circle(ctx, infoCirc3, infoCircRadius);
-
+    
     int32_t angleStart=270, angleEnd=270;
     int32_t angleSize = 30;
+    int32_t trendInset = 5;
     switch(trend_dir) {
         case 1: //    RESOURCE_ID_IMAGE_UPUP_WHITE,     //0 - 1
-            angleStart=270; angleEnd=90; break;
+            angleStart=0-(2*angleSize); angleEnd=0+(2*angleSize); trendInset = 6; break;
         case 2: //    RESOURCE_ID_IMAGE_UP_WHITE,       //1 - 2
-            angleStart=360-angleSize; angleEnd=0+angleSize; break;
+            angleStart=0-angleSize; angleEnd=0+angleSize; break;
         case 3: //    RESOURCE_ID_IMAGE_UP45_WHITE,     //2 - 3
             angleStart=45-angleSize; angleEnd=45+angleSize; break;
         case 4: //    RESOURCE_ID_IMAGE_FLAT_WHITE,     //3 - 4
@@ -471,12 +466,9 @@ static void update_proc(Layer * layer, GContext * ctx) {
         case 6: //    RESOURCE_ID_IMAGE_DOWN_WHITE,     //6 - 6
             angleStart=180-angleSize; angleEnd=180+angleSize; break;
         case 7: //    RESOURCE_ID_IMAGE_DOWNDOWN_WHITE, //7 - 7
-            angleStart=90; angleEnd=270; break;
+            angleStart=180-(2*angleSize); angleEnd=180+(2*angleSize); trendInset = 6; break;
     }
-    // graphics_context_set_stroke_width(ctx, 5);
-    // graphics_draw_arc(ctx, infoCirc2Rect, GOvalScaleModeFitCircle, DEG_TO_TRIGANGLE(angleStart), DEG_TO_TRIGANGLE(angleEnd));
     graphics_context_set_fill_color(ctx, COMP2_FGCOLOR);
-    int32_t trendInset = 4;
     graphics_fill_radial(ctx, infoCirc2Rect, GOvalScaleModeFitCircle, trendInset, DEG_TO_TRIGANGLE(angleStart), DEG_TO_TRIGANGLE(angleEnd));
 
     int32_t trendAngle = TRIG_MAX_ANGLE * (angleStart + angleEnd) / 2 / 360;
@@ -493,6 +485,12 @@ static void update_proc(Layer * layer, GContext * ctx) {
         chart_layer_set_plot_color(chart_layer, COMP3_FGCOLOR);
     text_layer_set_text_color(iob_layer, COMP2_FGCOLOR);
     text_layer_set_text_color(cob_layer, COMP2_FGCOLOR);
+
+    graphics_context_set_stroke_color(ctx, FOREGROUND_COLOR); 
+    graphics_context_set_stroke_width(ctx, 1);
+    graphics_draw_circle(ctx, infoCirc1, infoCircRadius);
+    graphics_draw_circle(ctx, infoCirc2, infoCircRadius);
+    graphics_draw_circle(ctx, infoCirc3, infoCircRadius);
 }
 
 static void reset_background() {
