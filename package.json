@@ -1,0 +1,104 @@
+{
+    "author": "Horsetooth Software",
+    "dependencies": {},
+    "keywords": [],
+    "name": "simplecgmanalog",
+    "pebble": {
+        "capabilities": [
+            "configurable"
+        ],
+        "displayName": "Simple CGM Analog",
+        "enableMultiJS": false,
+        "messageKeys": {
+            "alert": 3,
+            "bg_times": 8,
+            "bgcolor": 13,
+            "bgs": 7,
+            "cbgcolor": 17,
+            "cfgcolor": 16,
+            "cob": 15,
+            "delta": 0,
+            "egv": 1,
+            "fgcolor": 12,
+            "hide": 10,
+            "id": 5,
+            "iob": 9,
+            "showsec": 14,
+            "taptime": 11,
+            "time_delta_int": 6,
+            "trend": 2,
+            "vibe": 4
+        },
+        "projectType": "native",
+        "resources": {
+            "media": [
+                {
+                    "file": "fonts/HelveticaNeueBold.ttf",
+                    "name": "FONT_HN_BOLD_48",
+                    "type": "font"
+                },
+                {
+                    "file": "images/down.png",
+                    "name": "IMAGE_DOWN",
+                    "type": "png-trans"
+                },
+                {
+                    "file": "images/down45.png",
+                    "name": "IMAGE_DOWN45",
+                    "type": "png-trans"
+                },
+                {
+                    "file": "images/downdown.png",
+                    "name": "IMAGE_DOWNDOWN",
+                    "type": "png-trans"
+                },
+                {
+                    "file": "images/flat.png",
+                    "name": "IMAGE_FLAT",
+                    "targetPlatforms": [
+                        "aplite",
+                        "basalt",
+                        "chalk"
+                    ],
+                    "type": "png-trans"
+                },
+                {
+                    "file": "images/none.png",
+                    "name": "IMAGE_NONE",
+                    "type": "png-trans"
+                },
+                {
+                    "file": "images/refresh.png",
+                    "name": "IMAGE_REFRESH",
+                    "type": "png-trans"
+                },
+                {
+                    "file": "images/up.png",
+                    "name": "IMAGE_UP",
+                    "type": "png-trans"
+                },
+                {
+                    "file": "images/up45.png",
+                    "name": "IMAGE_UP45",
+                    "type": "png-trans"
+                },
+                {
+                    "file": "images/upup.png",
+                    "name": "IMAGE_UPUP",
+                    "type": "png-trans"
+                }
+            ]
+        },
+        "sdkVersion": "3",
+        "targetPlatforms": [
+            "aplite",
+            "basalt",
+            "chalk"
+        ],
+        "uuid": "ff883064-d44d-4e09-94b9-3851130cd0b5",
+        "watchapp": {
+            "watchface": true
+        }
+    },
+    "version": "0.7.0"
+}
