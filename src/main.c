@@ -101,6 +101,7 @@ static int b_color_channels[3] = { 0, 0, 0 };
 
 static const uint32_t const error[] = { 100,100,100,100,100 };
 
+#if 0 // OBSOLETE
 static const uint32_t CGM_ICONS[] = {
     RESOURCE_ID_IMAGE_NONE_WHITE,	  //4 - 0
     RESOURCE_ID_IMAGE_UPUP_WHITE,     //0 - 1
@@ -112,6 +113,7 @@ static const uint32_t CGM_ICONS[] = {
     RESOURCE_ID_IMAGE_DOWNDOWN_WHITE, //7 - 7
     RESOURCE_ID_IMAGE_REFRESH_WHITE   //    8
 };
+#endif
 
 char *translate_error(AppMessageResult result) {
     switch (result) {
