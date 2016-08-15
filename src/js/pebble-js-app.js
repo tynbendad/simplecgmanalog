@@ -360,20 +360,20 @@ function nightscout(options) {
                             "launchCode": 1
                         },
                         {
-                          "title": "Snooze for 15 min",
-                            "type": "openWatchApp",
-                            "launchCode": 15  
-                        },
-                        {
                           "title": "Snooze for 30 min",
                             "type": "openWatchApp",
                             "launchCode": 30  
                         },                      
                         {
-                          "title": "Snooze for 45 Min",
+                          "title": "Snooze for 60 Min",
                             "type": "openWatchApp",
-                            "launchCode": 45  
+                            "launchCode": 60  
                         },                      
+                        {
+                          "title": "Snooze for 90 min",
+                            "type": "openWatchApp",
+                            "launchCode": 90  
+                        },
                         {
                           "title": "Cancel snooze",
                             "type": "openWatchApp",
@@ -420,7 +420,7 @@ function nightscout(options) {
 
                 if (hasTimeline) {
                     insertUserPin(pin, topic, function (responseText) {
-                        console.log('Result: ' + responseText);
+//                        console.log('Result: ' + responseText);
                     });
                 }               
                 
@@ -487,7 +487,7 @@ function createCOBStr(data) {
     var toReturn = "";
     if (typeof data[0].cob !== 'undefined' && data[0].cob !== null) {
         toReturn = "C:" + data[0].cob;
-        console.log("cob: " + data[0].cob);
+        // console.log("cob: " + data[0].cob);
     }
     return toReturn;  
 }
@@ -705,7 +705,7 @@ function getShareGlucoseData(sessionId, defaults, options) {
                 
                 if (hasTimeline) {
                     insertUserPin(pin, topic, function (responseText) {
-                        console.log('Result: ' + responseText);
+//                        console.log('Result: ' + responseText);
                     });
                 }  
             }
@@ -825,7 +825,7 @@ Pebble.addEventListener("appmessage",
     function (e) {
         fetchCgmData(e.payload.id);
     });
-    
+
 // The timeline public URL root
 var API_URL_ROOT = 'https://timeline-api.getpebble.com/';
 

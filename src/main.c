@@ -57,6 +57,7 @@ static char date_text[124] = "";
 static char batt_text[124] = "";
 static char iob_str[124] = "";
 static char cob_str[124] = "";
+static char snooze_str[124] = "";
 
 static int  tap_sec = 4;
 static bool show_bg = true;
@@ -151,15 +152,26 @@ static void update_hand_color() {
     curFG = FOREGROUND_COLOR;
     analog_mode(curBG, curFG, 0);
 }
+
+static bool is_snoozed() {
+    time_t t = time(NULL);
+    if (t > alert_snooze) {
+        // APP_LOG(APP_LOG_LEVEL_DEBUG, "Snooze Expire");
+        return false;
+    }
+    // APP_LOG(APP_LOG_LEVEL_DEBUG, "Snooze Active");
+    return true;
+}
+
 static void comm_alert() {
     
     VibePattern pat = {
         .durations = error,
         .num_segments = ARRAY_LENGTH(error),
     };     
-        if (check_count % 5 == 0 || t_delta % 5 == 0) {
-            vibes_enqueue_custom_pattern(pat);
-        }
+    if ((check_count % 5 == 0 || t_delta % 5 == 0) && !is_snoozed()) {
+        vibes_enqueue_custom_pattern(pat);
+    }
     
     b_color_channels[0] = 255;
     b_color_channels[1] = 0;
@@ -168,8 +180,8 @@ static void comm_alert() {
     update_hand_color();
     
     layer_mark_dirty(s_canvas_layer);
-
 }
+
 /************************************ UI **************************************/
 static void send_int(int key, int value) {
   DictionaryIterator *iter;
@@ -187,7 +199,7 @@ void send_cmd() {
     
     if (s_canvas_layer) {
         // gbitmap_destroy(icon_bitmap);
-        snprintf(time_delta_str, 12, "check(%d)", check_count++);
+        snprintf(time_delta_str, 12, "chk(%d)", check_count++);
 
         if (check_count > 1)
             data_id = 99;
@@ -323,6 +335,8 @@ static void tick_handler(struct tm * tick_time, TimeUnits changed) {
             if (t_delta <= 0) {
                 t_delta = 0;
                 snprintf(time_delta_str, 12, "now"); // puts string into buffer
+            } else if (t_delta > 99) {
+                snprintf(time_delta_str, 12, "%d m", t_delta); // puts string into buffer
             } else {
                 snprintf(time_delta_str, 12, "%d min", t_delta); // puts string into buffer
             }
@@ -392,6 +406,15 @@ static void update_proc(Layer * layer, GContext * ctx) {
     if(batt_layer)
         text_layer_set_text_color(batt_layer, FOREGROUND_COLOR);
 
+    if (delta_layer) {
+        if (is_snoozed()) {
+            int snooze_left = (alert_snooze - time(NULL)) / 60;
+            if (snooze_left < 0)
+                snooze_left = 0;
+            snprintf(snooze_str, 12, "z:%dm", snooze_left);
+            text_layer_set_text(delta_layer, snooze_str);
+        }
+    }
     graphics_context_set_stroke_color(ctx, BACKGROUND_COLOR); 
     graphics_context_set_antialiased(ctx, ANTIALIASING);
     
@@ -505,16 +528,6 @@ static void reset_background() {
     //if(time_layer)
     //    text_layer_set_text_color(time_layer, GColorBlack);
     layer_mark_dirty(s_canvas_layer);
-}
-
-bool is_snoozed() {
-    time_t t = time(NULL);
-    if (t > alert_snooze) {
-        APP_LOG(APP_LOG_LEVEL_DEBUG, "Snooze Expire");
-        return false;
-    }
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "Snooze Active");
-    return true;
 }
 
 static void process_alert() {
@@ -710,7 +723,7 @@ static GColor colorLookup(char *cstr, GColor gcolor) {
 
 static void inbox_received_callback(DictionaryIterator *iterator, void *context) {
     check_count = 0;
-    APP_LOG(APP_LOG_LEVEL_INFO, "Message received!");
+    // APP_LOG(APP_LOG_LEVEL_INFO, "Message received!");
     if(time_delta_layer)
         text_layer_set_text(time_delta_layer, "in...");
         
@@ -718,7 +731,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     Tuple *new_tuple = dict_read_first(iterator);
     
     uint32_t dict = dict_size(iterator);
-    APP_LOG(APP_LOG_LEVEL_INFO, "size of received: %d", (int)dict);
+    // APP_LOG(APP_LOG_LEVEL_INFO, "size of received: %d", (int)dict);
     reset_background();
     CgmData* cgm_data = cgm_data_create(1,2,"3m","199","+3mg/dL","Evan");
 
@@ -769,7 +782,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
             
             case CGM_COB_KEY:;
                 strncpy(cob_str, new_tuple->value->cstring, 124);
-                APP_LOG(APP_LOG_LEVEL_DEBUG, "COB: %s", new_tuple->value->cstring);
+                // APP_LOG(APP_LOG_LEVEL_DEBUG, "COB: %s", new_tuple->value->cstring);
                 break;
             
             case CGM_TIME_DELTA_KEY:;
@@ -782,8 +795,10 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
                 }
                 
                 if (t_delta <= 0) {
-                t_delta = 0;
+                    t_delta = 0;
                     snprintf(time_delta_str, 12, "now"); // puts string into buffer
+                } else if (t_delta > 99) {
+                    snprintf(time_delta_str, 12, "%d m", t_delta); // puts string into buffer
                 } else {
                     snprintf(time_delta_str, 12, "%d min", t_delta); // puts string into buffer
                 }
@@ -839,19 +854,19 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
                 break;
             case CGM_FGCOLOR_KEY:
                 fgcolor = colorLookup(new_tuple->value->cstring, GColorWhite);
-                APP_LOG(APP_LOG_LEVEL_DEBUG, "FGCOLOR: %s", new_tuple->value->cstring);
+                // APP_LOG(APP_LOG_LEVEL_DEBUG, "FGCOLOR: %s", new_tuple->value->cstring);
                 break;
             case CGM_BGCOLOR_KEY:
                 bgcolor = colorLookup(new_tuple->value->cstring, GColorBlack);
-                APP_LOG(APP_LOG_LEVEL_DEBUG, "BGCOLOR: %s", new_tuple->value->cstring);
+                // APP_LOG(APP_LOG_LEVEL_DEBUG, "BGCOLOR: %s", new_tuple->value->cstring);
                 break;
             case CGM_CFGCOLOR_KEY:
                 cfgcolor = colorLookup(new_tuple->value->cstring, GColorWhite);
-                APP_LOG(APP_LOG_LEVEL_DEBUG, "CFGCOLOR: %s", new_tuple->value->cstring);
+                // APP_LOG(APP_LOG_LEVEL_DEBUG, "CFGCOLOR: %s", new_tuple->value->cstring);
                 break;
             case CGM_CBGCOLOR_KEY:
                 cbgcolor = colorLookup(new_tuple->value->cstring, GColorBlack);
-                APP_LOG(APP_LOG_LEVEL_DEBUG, "CBGCOLOR: %s", new_tuple->value->cstring);
+                // APP_LOG(APP_LOG_LEVEL_DEBUG, "CBGCOLOR: %s", new_tuple->value->cstring);
                 break;
         }
         
@@ -993,14 +1008,14 @@ static void window_load(Window * window) {
     // chart_layer_set_plot_type(chart_layer, eLINE)
   	layer_add_child(s_canvas_layer /*window_layer*/, chart_layer_get_layer(chart_layer));
 
-    text_layer_set_text_color(bg_layer, GColorBlack);
+    text_layer_set_text_color(bg_layer, GColorWhite);
     text_layer_set_background_color(bg_layer, GColorClear);
     // text_layer_set_font(bg_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_HN_BOLD_48)));
     text_layer_set_font(bg_layer, fonts_get_system_font(BG_SYSTEM_FONT_NAME)); 
     text_layer_set_text_alignment(bg_layer, GTextAlignmentCenter);
     layer_add_child(s_canvas_layer, text_layer_get_layer(bg_layer)); 
  
-    text_layer_set_text_color(delta_layer, GColorBlack);
+    text_layer_set_text_color(delta_layer, GColorWhite);
     text_layer_set_background_color(delta_layer, GColorClear);
     text_layer_set_font(delta_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
     layer_add_child(s_canvas_layer, text_layer_get_layer(delta_layer)); 
@@ -1020,11 +1035,11 @@ static void window_load(Window * window) {
     text_layer_set_font(cob_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
     layer_add_child(s_canvas_layer, text_layer_get_layer(cob_layer)); 
 
-    text_layer_set_text_color(time_layer, GColorBlack);
+    text_layer_set_text_color(time_layer, GColorWhite);
     text_layer_set_background_color(time_layer, GColorClear);
-    text_layer_set_text_color(date_layer, GColorBlack);
+    text_layer_set_text_color(date_layer, GColorWhite);
     text_layer_set_background_color(date_layer, GColorClear);
-    text_layer_set_text_color(batt_layer, GColorBlack);
+    text_layer_set_text_color(batt_layer, GColorWhite);
     text_layer_set_background_color(batt_layer, GColorClear);
     // 
     
@@ -1058,6 +1073,8 @@ static void window_unload(Window * window) {
 
 /*********************************** App **************************************/
 static void init() {
+    curFG = fgcolor = cfgcolor = GColorWhite;
+    curBG = bgcolor = cbgcolor = GColorBlack;
     
     time_t t = time(NULL);
     show_bg = true;
