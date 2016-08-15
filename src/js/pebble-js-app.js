@@ -40,9 +40,9 @@ function fetchCgmData(id) {
             if(options.raw) {
                 getNightscoutCalRecord(options);
             } else {
-               nightscout(options); 
+                nightscout(options); 
             }
-            
+
             break;
 
         case "Share":
@@ -290,26 +290,26 @@ function nightscout(options) {
                 if (data.bgs.length == 1) {
                      delta = "NA";
                  } else {
-                    var deltaZero = (data.bgs[0].sgv * options.conversion);
-                    var deltaOne = (data.bgs[1].sgv * options.conversion);
+                    var deltaZero = (data.bgs[0].sgv /* * options.conversion */);
+                    var deltaOne = (data.bgs[1].sgv /* * options.conversion */);
                     convertedDelta = (deltaZero - deltaOne);
                 }
 
                 //Manage HIGH & LOW
-                if (data.bgs[0].sgv == 39) {
+                if (data.bgs[0].sgv == (39 * options.conversion /**/ )) {
                     egv = "low";
                     delta = "check";
                     trend = 0;
-                } else if (data.bgs[0].sgv > 400) {
+                } else if (data.bgs[0].sgv > (400 * options.conversion /**/ )) {
                     egv = "hgh";
                     delta = "check";
                     trend = 0;
-                } else if (data.bgs[0].sgv < 39 && !options.raw)    {
+                } else if (data.bgs[0].sgv < (39 * options.conversion /**/ ) && !options.raw)    {
                     egv = "???";
                     delta = "check";
                     trend = 0;
                 } else {
-                    var convertedEgv = (data.bgs[0].sgv * options.conversion);
+                    var convertedEgv = parseFloat(data.bgs[0].sgv /* * options.conversion */);
                     egv = (convertedEgv < 39 * options.conversion) ? parseFloat(Math.round(convertedEgv * 100) / 100).toFixed(1).toString() : convertedEgv.toFixed(fix).toString();
                     delta = (convertedEgv < 39 * options.conversion) ? parseFloat(Math.round(convertedDelta * 100) / 100).toFixed(1) : convertedDelta.toFixed(fix);
                     
@@ -330,7 +330,7 @@ function nightscout(options) {
                 var pin_id_suffix = 5 * Math.round(n / 5);
                 
                 var title = "";
-                if (parseInt(data.bgs[0].sgv, 10) <= 39) {
+                if (parseInt(data.bgs[0].sgv, 10) <= (39 * options.conversion /**/ )) {
                     title = "Special: " + data.bgs[0].sgv;
                 }
 
@@ -360,20 +360,20 @@ function nightscout(options) {
                             "launchCode": 1
                         },
                         {
-                          "title": "Snooze for 15 min",
-                            "type": "openWatchApp",
-                            "launchCode": 15  
-                        },
-                        {
-                          "title": "Snooze for 30 min",
+                          "title": "Snooze alerts for 30 min",
                             "type": "openWatchApp",
                             "launchCode": 30  
                         },                      
                         {
-                          "title": "Snooze for 45 Min",
+                          "title": "Snooze alerts for 60 Min",
                             "type": "openWatchApp",
-                            "launchCode": 45  
+                            "launchCode": 60  
                         },                      
+                        {
+                          "title": "Snooze alerts for 90 min",
+                            "type": "openWatchApp",
+                            "launchCode": 90  
+                        },
                         {
                           "title": "Cancel snooze",
                             "type": "openWatchApp",
@@ -393,7 +393,8 @@ function nightscout(options) {
                         alert = 4;
                 }
                 
-                
+//                console.log("bgarray: " + createNightscoutBgArray(data.bgs, options.conversion /**/));
+//                console.log("bgtimearray: " + createNightscoutBgTimeArray(data.bgs, options.conversion /**/));
                 
                 Pebble.sendAppMessage({
                     "delta": delta + deltaSuffix,
@@ -403,8 +404,8 @@ function nightscout(options) {
                     "vibe": options.vibe_temp,
                     "id": int32ify(data.bgs[0].datetime),
                     "time_delta_int": timeDeltaMinutes,
-                    "bgs" : createNightscoutBgArray(data.bgs),
-                    "bg_times" : createNightscoutBgTimeArray(data.bgs),
+                    "bgs" : createNightscoutBgArray(data.bgs, options.conversion /**/),
+                    "bg_times" : createNightscoutBgTimeArray(data.bgs, options.conversion /**/),
                     "iob": createIOBStr(data.bgs),
                     "cob": createCOBStr(data.bgs),
                     'showsec' : options.showsec,
@@ -420,7 +421,7 @@ function nightscout(options) {
 
                 if (hasTimeline) {
                     insertUserPin(pin, topic, function (responseText) {
-                        console.log('Result: ' + responseText);
+//                        console.log('Result: ' + responseText);
                     });
                 }               
                 
@@ -447,14 +448,14 @@ function nightscout(options) {
     
 }
 
-function createNightscoutBgArray(data) {
+function createNightscoutBgArray(data, conversion) {
     var toReturn = "0,"; 
     var now = new Date();  
     for (var i = 0; i < data.length; i++) {       
         var wall = parseInt(data[i].datetime);
         var timeAgo = msToMinutes(now.getTime() - wall);
-        if (timeAgo < 45 && data[i].sgv >= 39) {  
-            toReturn = toReturn + data[i].sgv.toString() + ",";
+        if (timeAgo < 45 && data[i].sgv >= (39 * conversion)) {  
+            toReturn = toReturn + (data[i].sgv / conversion).toFixed().toString() + ",";
         }
     }
     toReturn = toReturn.replace(/,\s*$/, "");  
@@ -462,14 +463,14 @@ function createNightscoutBgArray(data) {
 }
     
 
-function createNightscoutBgTimeArray(data) {
+function createNightscoutBgTimeArray(data, conversion) {
     var toReturn = "";
     var now = new Date();   
     for (var i = 0; i < data.length; i++) {  
         var wall = parseInt(data[i].datetime);
         var timeAgo = msToMinutes(now.getTime() - wall);
-        if (timeAgo < 45 && data[i].sgv >= 39) {
-            toReturn = toReturn + (45-timeAgo).toString() + ",";
+        if (timeAgo < 45 && data[i].sgv >= (39 * conversion)) {
+            toReturn = toReturn + (45-timeAgo).toFixed().toString() + ",";
         }
     } 
     toReturn = toReturn.replace(/,\s*$/, "");  
@@ -487,7 +488,7 @@ function createCOBStr(data) {
     var toReturn = "";
     if (typeof data[0].cob !== 'undefined' && data[0].cob !== null) {
         toReturn = "C:" + data[0].cob;
-        console.log("cob: " + data[0].cob);
+        // console.log("cob: " + data[0].cob);
     }
     return toReturn;  
 }
@@ -650,19 +651,19 @@ function getShareGlucoseData(sessionId, defaults, options) {
                             "launchCode": 1
                         },
                         {
-                          "title": "Snooze alerts for 15 min",
-                            "type": "openWatchApp",
-                            "launchCode": 15  
-                        },
-                        {
-                          "title": "Snooze alert for 30 min",
+                          "title": "Snooze alerts for 30 min",
                             "type": "openWatchApp",
                             "launchCode": 30  
+                        },
+                        {
+                          "title": "Snooze alerts for 60 min",
+                            "type": "openWatchApp",
+                            "launchCode": 60  
                         },                      
                         {
-                          "title": "Snooze alert for 45 Min",
+                          "title": "Snooze alerts for 90 Min",
                             "type": "openWatchApp",
-                            "launchCode": 45  
+                            "launchCode": 90  
                         },                      
                         {
                           "title": "Cancel snooze",
@@ -705,7 +706,7 @@ function getShareGlucoseData(sessionId, defaults, options) {
                 
                 if (hasTimeline) {
                     insertUserPin(pin, topic, function (responseText) {
-                        console.log('Result: ' + responseText);
+//                        console.log('Result: ' + responseText);
                     });
                 }  
             }
@@ -794,7 +795,7 @@ Pebble.addEventListener("showConfiguration", function () {
 
 Pebble.addEventListener("webviewclosed", function (e) {
     var options = JSON.parse(decodeURIComponent(e.response));
-    console.log("options: " + JSON.stringify(options));
+//    console.log("options: " + JSON.stringify(options));
     window.localStorage.setItem('cgmPebbleDuo', JSON.stringify(options));
     fetchCgmData(defaultId);
 });
@@ -825,7 +826,7 @@ Pebble.addEventListener("appmessage",
     function (e) {
         fetchCgmData(e.payload.id);
     });
-    
+
 // The timeline public URL root
 var API_URL_ROOT = 'https://timeline-api.getpebble.com/';
 
