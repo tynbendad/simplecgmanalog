@@ -21,7 +21,6 @@ function fetchCgmData(id) {
             'fgcolor' : 'white',
             'bgcolor' : 'black',
      };
-    console.log("region: " + options.region);
     switch (options.mode) {
         case "Rogue":
 
@@ -360,17 +359,17 @@ function nightscout(options) {
                             "launchCode": 1
                         },
                         {
-                          "title": "Snooze alerts for 30 min",
+                          "title": "Snooze alerts 30 min",
                             "type": "openWatchApp",
                             "launchCode": 30  
                         },                      
                         {
-                          "title": "Snooze alerts for 60 Min",
+                          "title": "Snooze alerts 60 min",
                             "type": "openWatchApp",
                             "launchCode": 60  
                         },                      
                         {
-                          "title": "Snooze alerts for 90 min",
+                          "title": "Snooze alerts 90 min",
                             "type": "openWatchApp",
                             "launchCode": 90  
                         },
@@ -651,17 +650,17 @@ function getShareGlucoseData(sessionId, defaults, options) {
                             "launchCode": 1
                         },
                         {
-                          "title": "Snooze alerts for 30 min",
+                          "title": "Snooze alerts 30 min",
                             "type": "openWatchApp",
                             "launchCode": 30  
                         },
                         {
-                          "title": "Snooze alerts for 60 min",
+                          "title": "Snooze alerts 60 min",
                             "type": "openWatchApp",
                             "launchCode": 60  
                         },                      
                         {
-                          "title": "Snooze alerts for 90 Min",
+                          "title": "Snooze alerts 90 min",
                             "type": "openWatchApp",
                             "launchCode": 90  
                         },                      
@@ -866,6 +865,7 @@ function timelineRequest(pin, topic, type, callback) {
 }
 
 function insertUserPin(pin, topic, callback) {
+//    console.log("insertUserPin: " + JSON.stringify(pin));
     if (topic != "not_set")
         timelineRequest(pin, topic, 'PUT', callback);
 }
