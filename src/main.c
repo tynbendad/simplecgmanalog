@@ -15,7 +15,7 @@
 #define COMP3_FGCOLOR cfgcolor
 #define COMP3_BGCOLOR cbgcolor
 
-static GColor curFG, curBG, fgcolor, bgcolor, cfgcolor, cbgcolor;
+static GColor8 curFG, curBG, fgcolor, bgcolor, cfgcolor, cbgcolor;
 
 extern void analog_init(Layer *window_layer);
 extern void analog_mode(GColor bg, GColor fg, int unused);
@@ -40,6 +40,7 @@ static int * bgs;
 static int * bg_times;
 static int num_bgs = 0;
 static int retry_interval = 5;
+static int num_checks_throttle = 5;
 static int tag_raw = 0;
 static int is_web = 0;
     
@@ -58,6 +59,7 @@ static char batt_text[124] = "";
 static char iob_str[124] = "";
 static char cob_str[124] = "";
 static char snooze_str[124] = "";
+static bool old_bg = false;
 
 static int  tap_sec = 4;
 static bool show_bg = true;
@@ -155,8 +157,12 @@ static void update_hand_color() {
 
 static bool is_snoozed() {
     time_t t = time(NULL);
+    if (alert_snooze == -1) {
+      // APP_LOG(APP_LOG_LEVEL_DEBUG, "Snooze Active (until cancelled)");
+      return true;
+    }
     if (t > alert_snooze) {
-        // APP_LOG(APP_LOG_LEVEL_DEBUG, "Snooze Expire");
+        // APP_LOG(APP_LOG_LEVEL_DEBUG, "Snooze Expired");
         return false;
     }
     // APP_LOG(APP_LOG_LEVEL_DEBUG, "Snooze Active");
@@ -225,6 +231,7 @@ void send_cmd() {
 /*************Startup Timer*******/
 //Message SHOULD come from smartphone app, but this will kick it off in less than 60 seconds if it can.
 static void timer_callback(void *data) {   
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "send_cmd for timer_callback");
     send_cmd(); 
 }
 
@@ -309,6 +316,7 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
         in_tap_handler = true;
         show_bg = !show_bg;
         layer_mark_dirty(s_canvas_layer);  
+        APP_LOG(APP_LOG_LEVEL_DEBUG, "send_cmd for tap_handler");
         send_cmd();
         app_timer_register(tap_sec * 1000, tap_timer_callback, NULL);
     }
@@ -328,7 +336,10 @@ static void tick_handler(struct tm * tick_time, TimeUnits changed) {
             }
     } else 
     
-    if(t_delta > retry_interval || check_count > 1) {
+    if(((t_delta > retry_interval) || (check_count > 1)) &&
+       (((!old_bg) && (check_count <= num_checks_throttle)) ||
+        ((old_bg || (check_count > num_checks_throttle)) && ((t_delta % retry_interval) == 1)))) {
+        APP_LOG(APP_LOG_LEVEL_DEBUG, "send_cmd for tick_handler");
         send_cmd();
     } else {   
         if (has_launched) {
@@ -407,17 +418,22 @@ static void update_proc(Layer * layer, GContext * ctx) {
         text_layer_set_text_color(batt_layer, FOREGROUND_COLOR);
 
     if (delta_layer) {
-        if (is_snoozed()) {
-            int snooze_left = (alert_snooze - time(NULL)) / 60;
-            if (snooze_left < 0)
-                snooze_left = 0;
-            snprintf(snooze_str, 12, "z:%dm", snooze_left);
-            text_layer_set_text(delta_layer, snooze_str);
+      if (is_snoozed()) {
+          int snooze_left;
+          if (alert_snooze == -1)
+            snooze_left = 99;
+          else
+            snooze_left = (alert_snooze - time(NULL)) / 60;
+          if (snooze_left < 0)
+            snooze_left = 0;
+          snprintf(snooze_str, 12, "z:%dm", snooze_left);
+          text_layer_set_text(delta_layer, snooze_str);
         }
     }
+
     graphics_context_set_stroke_color(ctx, BACKGROUND_COLOR); 
     graphics_context_set_antialiased(ctx, ANTIALIASING);
-    
+
     // time/date background/outline:
     // graphics_context_set_fill_color(ctx, GColorWhite);
     // graphics_fill_rect(ctx, GRect(0, 0, 144, bgoffset+25), 0, GCornerNone);
@@ -446,11 +462,21 @@ static void update_proc(Layer * layer, GContext * ctx) {
             text_layer_set_text_color(bg_layer, COMP1_FGCOLOR);
         if(delta_layer)
             text_layer_set_text_color(delta_layer, COMP1_FGCOLOR);
+
+        // set strikethrough color
+        graphics_context_set_stroke_color(ctx, COMP1_FGCOLOR);
     } else {
 #if defined(PBL_BW)
-        s_color_channels[0] = 170;
-        s_color_channels[1] = 170;
-        s_color_channels[2] = 170;
+        if (gcolor_equal(COMP1_BGCOLOR, GColorLightGray) ||
+            gcolor_equal(COMP1_BGCOLOR, GColorDarkGray)) {
+          s_color_channels[0] = 255;
+          s_color_channels[1] = 255;
+          s_color_channels[2] = 255;
+        } else {
+          s_color_channels[0] = 170;
+          s_color_channels[1] = 170;
+          s_color_channels[2] = 170;
+        }
 #endif
         // main background (b_color_channels is either BLACK or RED, in case of old data/comm errors):
         graphics_context_set_fill_color(ctx, BACKGROUND_COLOR);
@@ -458,14 +484,36 @@ static void update_proc(Layer * layer, GContext * ctx) {
         // graphics_context_set_fill_color(ctx, GColorFromRGB(b_color_channels[0], b_color_channels[1], b_color_channels[2]));
         graphics_fill_rect(ctx, GRect(0, 0, 180, 180), 0, GCornerNone);
 
-        graphics_context_set_fill_color(ctx, GColorFromRGB(s_color_channels[0], s_color_channels[1], s_color_channels[2]));
+        if (gcolor_equal(COMP1_BGCOLOR, GColorFromRGB(s_color_channels[0], s_color_channels[1], s_color_channels[2]))) {
+          if (gcolor_equal(GColorRed, GColorFromRGB(s_color_channels[0], s_color_channels[1], s_color_channels[2]))) {
+            graphics_context_set_fill_color(ctx, GColorYellow);
+          } else {
+            graphics_context_set_fill_color(ctx, GColorRed);
+          }
+        } else {
+          graphics_context_set_fill_color(ctx, GColorFromRGB(s_color_channels[0], s_color_channels[1], s_color_channels[2]));
+        }
         graphics_fill_circle(ctx, infoCirc1, infoCircRadius);
         if(bg_layer)
             text_layer_set_text_color(bg_layer, GColorBlack);
         if(delta_layer)
             text_layer_set_text_color(delta_layer, GColorBlack);
-    }
 
+        // set strikethrough color
+        graphics_context_set_stroke_color(ctx, GColorBlack);
+    }
+  
+    // draw strikethrough:
+    if (old_bg && show_bg) {
+      GPoint left, right;
+      left.x = BG_ORIGIN_SIZE.origin.x + 5;
+      left.y = BG_ORIGIN_SIZE.origin.y + BG_ORIGIN_SIZE.size.h / 2 - 4;
+      right = left;
+      right.x += BG_ORIGIN_SIZE.size.w - 10;
+      graphics_context_set_stroke_width(ctx, 2);
+      graphics_draw_line(ctx, left, right);
+    }
+  
     graphics_context_set_fill_color(ctx, COMP2_BGCOLOR);
     graphics_fill_circle(ctx, infoCirc2, infoCircRadius);
     if(time_delta_layer)
@@ -496,14 +544,17 @@ static void update_proc(Layer * layer, GContext * ctx) {
     graphics_context_set_fill_color(ctx, COMP2_FGCOLOR);
     graphics_fill_radial(ctx, infoCirc2Rect, GOvalScaleModeFitCircle, trendInset, DEG_TO_TRIGANGLE(angleStart), DEG_TO_TRIGANGLE(angleEnd));
 
-    int32_t trendAngle = TRIG_MAX_ANGLE * (angleStart + angleEnd) / 2 / 360;
-    int32_t trend_hand_length = infoCircRadius - trendInset;
-    GPoint trend_hand = {
+    if (!in_tap_handler) {
+      int32_t trendAngle = TRIG_MAX_ANGLE * (angleStart + angleEnd) / 2 / 360;
+      int32_t trend_hand_length = infoCircRadius - trendInset;
+      GPoint trend_hand = {
         .x = (int16_t)(sin_lookup(trendAngle) * (int32_t)trend_hand_length / TRIG_MAX_RATIO) + infoCirc2.x,
         .y = (int16_t)(-cos_lookup(trendAngle) * (int32_t)trend_hand_length / TRIG_MAX_RATIO) + infoCirc2.y,
-    };
-    graphics_context_set_stroke_color(ctx, COMP2_FGCOLOR);
-    graphics_draw_line(ctx, trend_hand, infoCirc2);
+      };
+      graphics_context_set_stroke_color(ctx, COMP2_FGCOLOR);
+      graphics_context_set_stroke_width(ctx, 1);
+      graphics_draw_line(ctx, trend_hand, infoCirc2);
+    }
 
     // chart color:
     if(chart_layer)
@@ -747,6 +798,10 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
             case CGM_EGV_DELTA_KEY:;
                 if(delta_layer)
                     text_layer_set_text(delta_layer, new_tuple->value->cstring);
+                old_bg = false;
+                if (strncmp(new_tuple->value->cstring, "old", 4) == 0) {
+                  old_bg = true;
+                }
                 break;
                 
             case CGM_EGV_KEY:;
@@ -924,8 +979,10 @@ static void inbox_dropped_callback(AppMessageResult reason, void *context) {
         text_layer_set_text_color(delta_layer, GColorBlack);
     
     snprintf(time_delta_str, 12, "in-err(%d)", t_delta);
-    if(bg_layer)
-        strcpy(bg_text, translate_error(reason));
+    if(bg_layer) {
+      old_bg = false;
+      strcpy(bg_text, translate_error(reason));
+    }
         
     if(time_delta_layer)
         text_layer_set_text(time_delta_layer, time_delta_str);
@@ -951,8 +1008,10 @@ static void outbox_failed_callback(DictionaryIterator *iterator, AppMessageResul
         
     snprintf(time_delta_str, 12, "out-err(%d)", t_delta);
     
-    if(bg_layer)
-        strcpy(bg_text, translate_error(reason));
+    if(bg_layer) {
+      old_bg = false;
+      strcpy(bg_text, translate_error(reason));
+    }
     
     if(time_delta_layer)
         text_layer_set_text(time_delta_layer, time_delta_str);
@@ -1083,14 +1142,18 @@ static void init() {
         uint32_t arg = launch_get_args();
         APP_LOG(APP_LOG_LEVEL_DEBUG, "Launch: %i", (int)arg);
         if (arg == 2) {
-            alert_snooze = 0;    
-            APP_LOG(APP_LOG_LEVEL_DEBUG, "cancel mute");
-            
-        } else if (arg > 2) {
-            alert_snooze = t + arg*60;  
+          alert_snooze = 0;    
+          persist_write_int(SNOOZE_KEY, alert_snooze);
+          APP_LOG(APP_LOG_LEVEL_DEBUG, "cancel mute");
+        } else if (arg == 3) {
+          alert_snooze = -1;  
+          persist_write_int(SNOOZE_KEY, alert_snooze);
+          APP_LOG(APP_LOG_LEVEL_DEBUG, "mute until cancelled");
+        } else if (arg > 3) {
+          alert_snooze = t + arg*60;  
+          persist_write_int(SNOOZE_KEY, alert_snooze);
+          APP_LOG(APP_LOG_LEVEL_DEBUG, "mute for: %i", (int)alert_snooze);
         }
-        persist_write_int(SNOOZE_KEY, alert_snooze);
-        APP_LOG(APP_LOG_LEVEL_DEBUG, "mute for: %i", (int)alert_snooze);
     }
 
     if (persist_exists(SNOOZE_KEY)) {

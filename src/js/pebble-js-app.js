@@ -3,6 +3,10 @@ var hasTimeline = 1;
 var topic = "not_set";
 var defaultId = 99;
 
+function isNumeric(n) {
+  return !isNaN(parseFloat(n)) && isFinite(n);
+}
+
 function fetchCgmData(id) {
    var options = JSON.parse(window.localStorage.getItem('cgmPebbleDuo')) || 
      {   'mode': 'Default' ,
@@ -17,7 +21,7 @@ function fetchCgmData(id) {
             'raw' : false,
             'showsec' : false,
             'hide' : false,
-            'taptime' : 4,
+            'taptime' : 3,
             'fgcolor' : 'white',
             'bgcolor' : 'black',
      };
@@ -63,7 +67,7 @@ function fetchCgmData(id) {
                     "cob": "",
                     'showsec' : false,
                     'hide' : false,
-                    'taptime' : 4,
+                    'taptime' : 3,
                     'fgcolor' : 'white',
                     'bgcolor' : 'black',
                     'cfgcolor' : 'white',
@@ -132,7 +136,7 @@ function sendAuthError() {
                     "cob": "",
                     'showsec' : false,
                     'hide' : false,
-                    'taptime' : 4,
+                    'taptime' : 3,
                     'fgcolor' : 'white',
                     'bgcolor' : 'black',
                     'cfgcolor' : 'white',
@@ -168,7 +172,7 @@ function sendServerError(options) {
             "cob": "",
             'showsec' : false,
             'hide' : false,
-            'taptime' : 4,
+            'taptime' : 3,
             'fgcolor' : 'white',
             'bgcolor' : 'black',
             'cfgcolor' : 'white',
@@ -189,7 +193,7 @@ function sendUnknownError(msg) {
                 "cob": "",
                 'showsec' : false,
                 'hide' : false,
-                'taptime' : 4,
+                'taptime' : 3,
                 'fgcolor' : 'white',
                 'bgcolor' : 'black',
                 'cfgcolor' : 'white',
@@ -359,19 +363,19 @@ function nightscout(options) {
                             "launchCode": 1
                         },
                         {
-                          "title": "Snooze alerts 30 min",
+                          "title": "Snooze vibes 30 min",
                             "type": "openWatchApp",
                             "launchCode": 30  
                         },                      
                         {
-                          "title": "Snooze alerts 60 min",
+                          "title": "Snooze vibes 60 min",
                             "type": "openWatchApp",
                             "launchCode": 60  
                         },                      
                         {
-                          "title": "Snooze alerts 90 min",
+                          "title": "Snooze vibes until cancelled",
                             "type": "openWatchApp",
-                            "launchCode": 90  
+                            "launchCode": 3
                         },
                         {
                           "title": "Cancel snooze",
@@ -385,9 +389,8 @@ function nightscout(options) {
                 
                 // //Manage OLD data
                 if (timeDeltaMinutes >= 15) {
-                    delta = "NA";
+                    delta = "old";
                     trend = 0;
-                    egv = "old";
                     if (timeDeltaMinutes % 5 === 0)
                         alert = 4;
                 }
@@ -409,7 +412,7 @@ function nightscout(options) {
                     "cob": createCOBStr(data.bgs),
                     'showsec' : options.showsec,
                     'hide' : options.hide,
-                    'taptime' : Number(options.taptime),
+                    'taptime' : (options.taptime && isNumeric(options.taptime)) ? Number(options.taptime) : 2,
                     'fgcolor' : options.fgcolor ? options.fgcolor.toLowerCase() : "",
                     'bgcolor' : options.bgcolor ? options.bgcolor.toLowerCase() : "",
                     'cfgcolor' : options.cfgcolor ? options.cfgcolor.toLowerCase() : "",
@@ -650,20 +653,20 @@ function getShareGlucoseData(sessionId, defaults, options) {
                             "launchCode": 1
                         },
                         {
-                          "title": "Snooze alerts 30 min",
+                          "title": "Snooze vibes 30 min",
                             "type": "openWatchApp",
                             "launchCode": 30  
-                        },
+                        },                      
                         {
-                          "title": "Snooze alerts 60 min",
+                          "title": "Snooze vibes 60 min",
                             "type": "openWatchApp",
                             "launchCode": 60  
                         },                      
                         {
-                          "title": "Snooze alerts 90 min",
+                          "title": "Snooze vibes until cancelled",
                             "type": "openWatchApp",
-                            "launchCode": 90  
-                        },                      
+                            "launchCode": 3
+                        },
                         {
                           "title": "Cancel snooze",
                             "type": "openWatchApp",
@@ -674,9 +677,8 @@ function getShareGlucoseData(sessionId, defaults, options) {
                 
                 //Manage OLD data
                 if (timeDeltaMinutes >= 15) {
-                    delta = "NA";
+                    delta = "old";
                     trend = 0;
-                    egv = "old";
                     if (timeDeltaMinutes % 5 === 0)
                         alert = 4;
                 }
@@ -694,7 +696,7 @@ function getShareGlucoseData(sessionId, defaults, options) {
                     "cob": createCOBStr(data),
                     'showsec' : options.showsec,
                     'hide' : options.hide,
-                    'taptime' : Number(options.taptime),
+                    'taptime' : (options.taptime && isNumeric(options.taptime)) ? Number(options.taptime) : 2,
                     'fgcolor' : options.fgcolor ? options.fgcolor.toLowerCase() : "",
                     'bgcolor' : options.bgcolor ? options.bgcolor.toLowerCase() : "",
                     'cfgcolor' : options.cfgcolor ? options.cfgcolor.toLowerCase() : "",
@@ -788,11 +790,15 @@ function rogue(options) {
 
 
 Pebble.addEventListener("showConfiguration", function () {
+    var now = new Date();
+    console.log("eventListener: showConfiguration @" + now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds());
     Pebble.openURL('https://tynbendad.github.io/simplecgmanalog/config.html');
 //    Pebble.openURL('http://cgmwatch.azurewebsites.net/config.1.html');
 });
 
 Pebble.addEventListener("webviewclosed", function (e) {
+    var now = new Date();
+    console.log("eventListener: webviewclosed @" + now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds());
     var options = JSON.parse(decodeURIComponent(e.response));
 //    console.log("options: " + JSON.stringify(options));
     window.localStorage.setItem('cgmPebbleDuo', JSON.stringify(options));
@@ -801,6 +807,8 @@ Pebble.addEventListener("webviewclosed", function (e) {
 
 Pebble.addEventListener("ready",
     function (e) {
+        var now = new Date();
+        console.log("eventListener: ready @" + now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds());
         var options = JSON.parse(window.localStorage.getItem('cgmPebbleDuo')) || 
         {    'mode': 'Share' ,
             'high': 180,
@@ -814,7 +822,7 @@ Pebble.addEventListener("ready",
             'id' : defaultId,
             'showsec' : false,
             'hide' : false,
-            'taptime' : 4,
+            'taptime' : 3,
             'fgcolor' : 'white',
             'bgcolor' : 'black',
         };     
@@ -823,6 +831,8 @@ Pebble.addEventListener("ready",
 
 Pebble.addEventListener("appmessage",
     function (e) {
+        var now = new Date();
+        console.log("eventListener: appmessage @" + now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds());
         fetchCgmData(e.payload.id);
     });
 

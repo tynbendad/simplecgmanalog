@@ -33,6 +33,11 @@
         "resources": {
             "media": [
                 {
+                    "file": "images/upup.png",
+                    "name": "IMAGE_UPUP",
+                    "type": "png-trans"
+                },
+                {
                     "file": "fonts/HelveticaNeueBold.ttf",
                     "name": "FONT_HN_BOLD_48",
                     "type": "font"
@@ -81,11 +86,6 @@
                     "file": "images/up45.png",
                     "name": "IMAGE_UP45",
                     "type": "png-trans"
-                },
-                {
-                    "file": "images/upup.png",
-                    "name": "IMAGE_UPUP",
-                    "type": "png-trans"
                 }
             ]
         },
@@ -93,12 +93,13 @@
         "targetPlatforms": [
             "aplite",
             "basalt",
-            "chalk"
+            "chalk",
+            "diorite"
         ],
         "uuid": "ff883064-d44d-4e09-94b9-3851130cd0b5",
         "watchapp": {
             "watchface": true
         }
     },
-    "version": "1.2.0"
+    "version": "1.3.0"
 }
