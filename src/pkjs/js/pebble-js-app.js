@@ -19,12 +19,16 @@ function fetchCgmData(id) {
             'vibe' : 1,
             'vibe_temp' : 1,
             'raw' : false,
+            'timeline' : false,
             'showsec' : false,
             'hide' : false,
             'taptime' : 3,
             'fgcolor' : 'white',
             'bgcolor' : 'black',
      };
+    if (!options.timeline)
+        hasTimeline = 0;
+
     switch (options.mode) {
         case "Rogue":
 
@@ -765,11 +769,13 @@ function msToMinutes(millisec) {
 }
 
 function calculateShareAlert(egv, currentId, options) {
-    if (parseInt(options.id, 10) == parseInt(currentId, 10)) {
+    //console.log("vibe: " + options.vibe + ", options.id: " + options.id + ", currentId: " + currentId);
+    if ((options.vibe == 2) || (parseInt(options.id, 10) == parseInt(currentId, 10))) {
         options.vibe_temp = 0;
     } else {
         options.vibe_temp = options.vibe + 1;
     }
+    console.log("vibe_temp: " + options.vibe_temp);
 
     if (egv <= options.low){
         return 2;
@@ -792,7 +798,7 @@ function rogue(options) {
 Pebble.addEventListener("showConfiguration", function () {
     var now = new Date();
     console.log("eventListener: showConfiguration @" + now.getHours() + ":" + now.getMinutes() + ":" + now.getSeconds());
-    Pebble.openURL('https://tynbendad.github.io/simplecgmanalog/config.html');
+    Pebble.openURL('https://tynbendad.github.io/simplecgmanalog/config.html');  // use config2.html for testing & config.html for release
 //    Pebble.openURL('http://cgmwatch.azurewebsites.net/config.1.html');
 });
 
@@ -820,6 +826,7 @@ Pebble.addEventListener("ready",
             'vibe' : 1,
             'vibe_temp' : 1,
             'id' : defaultId,
+            'timeline' : false,
             'showsec' : false,
             'hide' : false,
             'taptime' : 3,

@@ -1,7 +1,7 @@
 #include <pebble.h>
-#include <pebble_chart.h>
-#include <data-processor.h>
-#include <cgm_info.h>
+#include "pebble_chart.h"
+#include "data-processor.h"
+#include "cgm_info.h"
 
 #define ANTIALIASING true
 #define SNOOZE_KEY 1
@@ -175,7 +175,8 @@ static void comm_alert() {
         .durations = error,
         .num_segments = ARRAY_LENGTH(error),
     };     
-    if ((check_count % 5 == 0 || t_delta % 5 == 0) && !is_snoozed()) {
+    //APP_LOG(APP_LOG_LEVEL_INFO, "comm_alert: check_count=%d, t_delta=%d, vibe_state=%d, is_snoozed=%d", check_count, t_delta, vibe_state, is_snoozed());
+    if ((check_count % 5 == 0 || t_delta % 5 == 0) && (vibe_state > 0) && !is_snoozed()) {
         vibes_enqueue_custom_pattern(pat);
     }
     

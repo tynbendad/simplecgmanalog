@@ -38,23 +38,23 @@
                     "type": "png-trans"
                 },
                 {
-                    "file": "fonts/HelveticaNeueBold.ttf",
-                    "name": "FONT_HN_BOLD_48",
-                    "type": "font"
-                },
-                {
-                    "file": "images/down.png",
-                    "name": "IMAGE_DOWN",
+                    "file": "images/up45.png",
+                    "name": "IMAGE_UP45",
                     "type": "png-trans"
                 },
                 {
-                    "file": "images/down45.png",
-                    "name": "IMAGE_DOWN45",
+                    "file": "images/up.png",
+                    "name": "IMAGE_UP",
                     "type": "png-trans"
                 },
                 {
-                    "file": "images/downdown.png",
-                    "name": "IMAGE_DOWNDOWN",
+                    "file": "images/refresh.png",
+                    "name": "IMAGE_REFRESH",
+                    "type": "png-trans"
+                },
+                {
+                    "file": "images/none.png",
+                    "name": "IMAGE_NONE",
                     "type": "png-trans"
                 },
                 {
@@ -68,24 +68,24 @@
                     "type": "png-trans"
                 },
                 {
-                    "file": "images/none.png",
-                    "name": "IMAGE_NONE",
+                    "file": "images/downdown.png",
+                    "name": "IMAGE_DOWNDOWN",
                     "type": "png-trans"
                 },
                 {
-                    "file": "images/refresh.png",
-                    "name": "IMAGE_REFRESH",
+                    "file": "images/down45.png",
+                    "name": "IMAGE_DOWN45",
                     "type": "png-trans"
                 },
                 {
-                    "file": "images/up.png",
-                    "name": "IMAGE_UP",
+                    "file": "images/down.png",
+                    "name": "IMAGE_DOWN",
                     "type": "png-trans"
                 },
                 {
-                    "file": "images/up45.png",
-                    "name": "IMAGE_UP45",
-                    "type": "png-trans"
+                    "file": "fonts/HelveticaNeueBold.ttf",
+                    "name": "FONT_HN_BOLD_48",
+                    "type": "font"
                 }
             ]
         },
@@ -101,5 +101,5 @@
             "watchface": true
         }
     },
-    "version": "1.3.0"
+    "version": "1.5.0"
 }
