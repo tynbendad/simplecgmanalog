@@ -395,8 +395,7 @@ function nightscout(options) {
                 if (timeDeltaMinutes >= 15) {
                     delta = "old";
                     trend = 0;
-                    if (timeDeltaMinutes % 5 === 0)
-                        alert = 4;
+                    alert = 4;
                 }
                 
 //                console.log("bgarray: " + createNightscoutBgArray(data.bgs, options.conversion /**/));
@@ -683,8 +682,7 @@ function getShareGlucoseData(sessionId, defaults, options) {
                 if (timeDeltaMinutes >= 15) {
                     delta = "old";
                     trend = 0;
-                    if (timeDeltaMinutes % 5 === 0)
-                        alert = 4;
+                    alert = 4;
                 }
                 Pebble.sendAppMessage({
                     "delta": delta,
@@ -770,12 +768,12 @@ function msToMinutes(millisec) {
 
 function calculateShareAlert(egv, currentId, options) {
     //console.log("vibe: " + options.vibe + ", options.id: " + options.id + ", currentId: " + currentId);
-    if ((options.vibe == 2) || (parseInt(options.id, 10) == parseInt(currentId, 10))) {
+    if (options.vibe == 2) {
         options.vibe_temp = 0;
     } else {
         options.vibe_temp = options.vibe + 1;
     }
-    console.log("vibe_temp: " + options.vibe_temp);
+    //console.log("vibe_temp: " + options.vibe_temp);
 
     if (egv <= options.low){
         return 2;

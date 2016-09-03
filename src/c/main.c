@@ -583,7 +583,7 @@ static void reset_background() {
 }
 
 static void process_alert() {
-    //APP_LOG(APP_LOG_LEVEL_DEBUG, "Vibe State: %i", vibe_state);
+    //APP_LOG(APP_LOG_LEVEL_DEBUG, "Alert State: %i", alert_state);
     switch (alert_state) {
         
     case LOSS_MID_NO_NOISE:;    
