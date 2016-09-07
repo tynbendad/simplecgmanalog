@@ -58,13 +58,17 @@ static char date_text[124] = "";
 static char batt_text[124] = "";
 static char iob_str[124] = "";
 static char cob_str[124] = "";
+static char bwp_str[124] = "";
+static char bwpo_str[124] = "";
 static char snooze_str[124] = "";
 static bool old_bg = false;
 
 static int  tap_sec = 4;
 static bool show_bg = true;
+static bool tap_bg = false;
 bool in_tap_handler = false;
 bool showsec = false;
+bool show_tapphase1 = false;
 
 static ChartLayer* chart_layer;
 static int trend_dir = 8;
@@ -88,6 +92,9 @@ enum CgmKey {
     CGM_COB_KEY = 0xf,
     CGM_CFGCOLOR_KEY = 0x10,
     CGM_CBGCOLOR_KEY = 0x11,
+    CGM_TAPBG_KEY = 0x12,
+    CGM_BWP_KEY = 0x13,
+    CGM_BWPO_KEY = 0x14,
 };
 
 
@@ -103,20 +110,6 @@ static int s_color_channels[3] = { 85, 85, 85 };
 static int b_color_channels[3] = { 0, 0, 0 };
 
 static const uint32_t const error[] = { 100,100,100,100,100 };
-
-#if 0 // OBSOLETE
-static const uint32_t CGM_ICONS[] = {
-    RESOURCE_ID_IMAGE_NONE_WHITE,	  //4 - 0
-    RESOURCE_ID_IMAGE_UPUP_WHITE,     //0 - 1
-    RESOURCE_ID_IMAGE_UP_WHITE,       //1 - 2
-    RESOURCE_ID_IMAGE_UP45_WHITE,     //2 - 3
-    RESOURCE_ID_IMAGE_FLAT_WHITE,     //3 - 4
-    RESOURCE_ID_IMAGE_DOWN45_WHITE,   //5 - 5
-    RESOURCE_ID_IMAGE_DOWN_WHITE,     //6 - 6
-    RESOURCE_ID_IMAGE_DOWNDOWN_WHITE, //7 - 7
-    RESOURCE_ID_IMAGE_REFRESH_WHITE   //    8
-};
-#endif
 
 char *translate_error(AppMessageResult result) {
     switch (result) {
@@ -169,15 +162,46 @@ static bool is_snoozed() {
     return true;
 }
 
+static int vibe_repeat = 0;
+typedef enum { VIBE_NONE, VIBE_LO, VIBE_HI, VIBE_BG, VIBE_COMM } vibe_types_t;
+static vibe_types_t vibe_type_last = VIBE_NONE;
+static void vibe_repetition(int type) {
+    if (type == vibe_type_last) {
+        vibe_repeat++;
+        if (vibe_repeat > (120 / 5))    // start over in 2 hours
+            vibe_repeat = 0;
+    } else {
+        vibe_repeat = 0;
+        vibe_type_last = type;
+    }
+    if ((vibe_state < 4) || (vibe_repeat <= (vibe_state - 4))) {
+        //APP_LOG(APP_LOG_LEVEL_INFO, "vibe_repetition: vibe_state=%d, vibe_repeat=%d, type=%d", vibe_state, vibe_repeat, type);
+        switch(type) {
+            case VIBE_LO:
+                vibes_long_pulse();
+                break;
+            case VIBE_HI:
+                vibes_long_pulse();
+                break;
+            case VIBE_BG:
+                vibes_double_pulse();
+                break;
+            case VIBE_COMM: {
+                VibePattern pat = {
+                    .durations = error,
+                    .num_segments = ARRAY_LENGTH(error),
+                };
+                vibes_enqueue_custom_pattern(pat);
+                break;
+            }
+        }
+    }
+}
+
 static void comm_alert() {
-    
-    VibePattern pat = {
-        .durations = error,
-        .num_segments = ARRAY_LENGTH(error),
-    };     
     //APP_LOG(APP_LOG_LEVEL_INFO, "comm_alert: check_count=%d, t_delta=%d, vibe_state=%d, is_snoozed=%d", check_count, t_delta, vibe_state, is_snoozed());
     if ((check_count % 5 == 0 || t_delta % 5 == 0) && (vibe_state > 0) && !is_snoozed()) {
-        vibes_enqueue_custom_pattern(pat);
+        vibe_repetition(VIBE_COMM);
     }
     
     b_color_channels[0] = 255;
@@ -234,11 +258,6 @@ void send_cmd() {
 static void timer_callback(void *data) {   
     APP_LOG(APP_LOG_LEVEL_DEBUG, "send_cmd for timer_callback");
     send_cmd(); 
-}
-
-static void timer_callback_2(void *data) {   
-    //send_cmd_connect();
-    //timer2 = app_timer_register(60000*2, timer_callback_2, NULL);
 }
 
 static void clock_refresh(struct tm * tick_time) {
@@ -298,27 +317,21 @@ static void tap_timer_callback2(void *data) {
 
 static void tap_timer_callback(void *data) {   
     show_bg = !show_bg;
+    show_tapphase1 = false;
     layer_mark_dirty(s_canvas_layer);
     app_timer_register(tap_sec * 1000, tap_timer_callback2, NULL);
 }
 
 static void tap_handler(AccelAxisType axis, int32_t direction) {
-#if 0 // debug
-    tap_last_axis = axis;
-    tap_last_direction = direction;
-    if (axis == ACCEL_AXIS_Z) 
-    {
-        taps++;
-        clock_refresh(NULL);
-        layer_mark_dirty(s_canvas_layer);  
-    }
-#endif
     if (!in_tap_handler) {
         in_tap_handler = true;
+        show_tapphase1 = true;
         show_bg = !show_bg;
         layer_mark_dirty(s_canvas_layer);  
-        APP_LOG(APP_LOG_LEVEL_DEBUG, "send_cmd for tap_handler");
-        send_cmd();
+        if (tap_bg) {
+            APP_LOG(APP_LOG_LEVEL_DEBUG, "send_cmd for tap_handler");
+            send_cmd();
+        }
         app_timer_register(tap_sec * 1000, tap_timer_callback, NULL);
     }
 }
@@ -336,25 +349,22 @@ static void tick_handler(struct tm * tick_time, TimeUnits changed) {
                 text_layer_set_text(time_delta_layer, time_delta_str);
             }
     } else 
-    
-    if(((t_delta > retry_interval) || (check_count > 1)) &&
-       (((!old_bg) && (check_count <= num_checks_throttle)) ||
-        ((old_bg || (check_count > num_checks_throttle)) && ((t_delta % retry_interval) == 1)))) {
+      if(((t_delta > retry_interval) || (check_count > 1)) &&
+         (((!old_bg) && (check_count <= num_checks_throttle)) ||
+          ((old_bg || (check_count > num_checks_throttle)) && ((t_delta % retry_interval) == 1)))) {
         APP_LOG(APP_LOG_LEVEL_DEBUG, "send_cmd for tick_handler");
         send_cmd();
     } else {   
-        if (has_launched) {
-            if (t_delta <= 0) {
-                t_delta = 0;
-                snprintf(time_delta_str, 12, "now"); // puts string into buffer
-            } else if (t_delta > 99) {
-                snprintf(time_delta_str, 12, "%d m", t_delta); // puts string into buffer
-            } else {
-                snprintf(time_delta_str, 12, "%d min", t_delta); // puts string into buffer
-            }
-            if (time_delta_layer) {
-                text_layer_set_text(time_delta_layer, time_delta_str);
-            }
+        if (t_delta <= 0) {
+            t_delta = 0;
+            snprintf(time_delta_str, 12, "now"); // puts string into buffer
+        } else if (t_delta > 99) {
+            snprintf(time_delta_str, 12, "%d m", t_delta); // puts string into buffer
+        } else {
+            snprintf(time_delta_str, 12, "%d min", t_delta); // puts string into buffer
+        }
+        if (time_delta_layer) {
+            text_layer_set_text(time_delta_layer, time_delta_str);
         }
     }
     t_delta++;  
@@ -409,10 +419,29 @@ static int infoCircRadius = 28;
 #endif
 
 static void update_proc(Layer * layer, GContext * ctx) {
-    if(iob_layer)
-        text_layer_set_text(iob_layer, iob_str);
-    if(cob_layer)
-        text_layer_set_text(cob_layer, cob_str);
+    if (show_tapphase1 && 
+        ((strlen(bwp_str) > 0) || (strlen(bwpo_str) > 0))) {
+        if(iob_layer)
+            text_layer_set_text(iob_layer, bwp_str);
+        if(cob_layer) {
+            if ((strncmp(cob_str, "C:0", 124) == 0) &&
+                (strlen(bwpo_str) > 0))
+                text_layer_set_text(cob_layer, cob_str);
+            else
+                text_layer_set_text(cob_layer, bwpo_str);
+        }
+    } else {
+        if(iob_layer)
+            text_layer_set_text(iob_layer, iob_str);
+        if(cob_layer) {
+            if ((strncmp(cob_str, "C:0", 124) == 0) &&
+                (strlen(bwpo_str) > 0))
+                text_layer_set_text(cob_layer, bwpo_str);
+            else
+                text_layer_set_text(cob_layer, cob_str);
+        }
+    }
+
     if(date_layer)
         text_layer_set_text_color(date_layer, FOREGROUND_COLOR);
     if(batt_layer)
@@ -592,7 +621,7 @@ static void process_alert() {
         s_color_channels[2] = 0;
         
         if (vibe_state > 0 && !is_snoozed())
-            vibes_long_pulse();
+            vibe_repetition(VIBE_LO);
             
         //APP_LOG(APP_LOG_LEVEL_DEBUG, "Alert key: %i", LOSS_MID_NO_NOISE);
 #if defined(PBL_COLOR)
@@ -628,7 +657,7 @@ static void process_alert() {
         s_color_channels[2] = 0;
         
        if (vibe_state > 0 && !is_snoozed())
-            vibes_long_pulse();
+           vibe_repetition(VIBE_HI);
             
 #ifdef PBL_PLATFORM_CHALK
         if(delta_layer)
@@ -650,8 +679,10 @@ static void process_alert() {
         s_color_channels[1] = 255;
         s_color_channels[2] = 0;
         
-        if (vibe_state > 1 && !is_snoozed())
-            vibes_double_pulse();
+        if ((vibe_state == 2) && !is_snoozed())
+            vibe_repetition(VIBE_BG);
+        else
+            vibe_repetition(VIBE_NONE);
             
         //APP_LOG(APP_LOG_LEVEL_DEBUG, "Alert key: %i", OKAY);
         if(bg_layer)
@@ -841,6 +872,16 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
                 // APP_LOG(APP_LOG_LEVEL_DEBUG, "COB: %s", new_tuple->value->cstring);
                 break;
             
+            case CGM_BWP_KEY:;
+                strncpy(bwp_str, new_tuple->value->cstring, 124);
+                // APP_LOG(APP_LOG_LEVEL_DEBUG, "BWP: %s", new_tuple->value->cstring);
+                break;
+            
+            case CGM_BWPO_KEY:;
+                strncpy(bwpo_str, new_tuple->value->cstring, 124);
+                // APP_LOG(APP_LOG_LEVEL_DEBUG, "BWPO: %s", new_tuple->value->cstring);
+                break;
+            
             case CGM_TIME_DELTA_KEY:;
                 int t_delta_temp = new_tuple->value->int16;
                 
@@ -892,10 +933,14 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
             case CGM_HIDE_KEY:
                 //APP_LOG(APP_LOG_LEVEL_DEBUG, "HIDE: %d", (int)new_tuple->value->int16);
                 if (in_tap_handler) {
-                    show_bg = new_tuple->value->int16;
+                    // no need to update show_bg while doing tap
                 } else {
                     show_bg = !new_tuple->value->int16;
                 }
+                break;
+            case CGM_TAPBG_KEY:
+                //APP_LOG(APP_LOG_LEVEL_DEBUG, "TAPBG: %d", (int)new_tuple->value->int16);
+                tap_bg = new_tuple->value->int16;
                 break;
             case CGM_SHOWSEC_KEY:
                 showsec = new_tuple->value->int16;             
@@ -957,14 +1002,10 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     //Process Alerts
     process_alert();
     has_launched = 1;
-    
-    //timer2 = app_timer_register(60000*2, timer_callback_2, NULL);
-    
-
 }
 
 static void inbox_dropped_callback(AppMessageResult reason, void *context) {
-    APP_LOG(APP_LOG_LEVEL_INFO, "inbox_dropped_callback");
+    //APP_LOG(APP_LOG_LEVEL_INFO, "inbox_dropped_callback");
     s_color_channels[0] = 0;
     s_color_channels[1] = 0;
     s_color_channels[2] = 255;
@@ -1188,7 +1229,7 @@ static void init() {
     app_message_register_outbox_sent(outbox_sent_callback);
     int maxMessageBytes = 1 + 17/*# of tuples*/ * 7 +
                    16/*delta*/ + 8/*egv*/ + 4/*trend*/ + 4/*alert*/ + 4/*vibe*/ + 8/*wall*/ + 4/*deltaminutes*/ + 33/*bgarray*/ + 41/*bgtimearray*/ +
-                   8/*iob*/ + 8/*cob*/ + 4/*showsec*/ + 4/*hide*/ + 4/*taptime*/ + 20/*fgcolor*/ + 20/*bgcolor*/ + 20/*cfgcolor*/ + 20/*cbgcolor*/;
+                   8/*iob*/ + 8/*bwp*/ + 8/*bwpo*/ + 8/*cob*/ + 4/*showsec*/ + 4/*tapbg*/ + 4/*hide*/ + 4/*taptime*/ + 20/*fgcolor*/ + 20/*bgcolor*/ + 20/*cfgcolor*/ + 20/*cbgcolor*/;
     APP_LOG(APP_LOG_LEVEL_DEBUG, "maxMessageBytes: %i, max: %i", maxMessageBytes, (int)app_message_inbox_size_maximum());
     AppMessageResult ropen = app_message_open(2 * maxMessageBytes, 40);
     APP_LOG(APP_LOG_LEVEL_DEBUG, "app_message_open: %i", (int)ropen);

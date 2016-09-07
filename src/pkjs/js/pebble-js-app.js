@@ -21,6 +21,7 @@ function fetchCgmData(id) {
             'raw' : false,
             'timeline' : false,
             'showsec' : false,
+            'tapbg' : false,
             'hide' : false,
             'taptime' : 3,
             'fgcolor' : 'white',
@@ -69,7 +70,10 @@ function fetchCgmData(id) {
                     "time_delta_int": -1,
                     "iob": "",
                     "cob": "",
+                    "bwp": "",
+                    "bwpo": "",
                     'showsec' : false,
+                    'tapbg' : false,
                     'hide' : false,
                     'taptime' : 3,
                     'fgcolor' : 'white',
@@ -138,7 +142,10 @@ function sendAuthError() {
                     "time_delta_int": -1,
                     "iob": "",
                     "cob": "",
+                    "bwp": "",
+                    "bwpo": "",
                     'showsec' : false,
+                    'tapbg' : false,
                     'hide' : false,
                     'taptime' : 3,
                     'fgcolor' : 'white',
@@ -159,7 +166,9 @@ function sendTimeOutError(options) {
             "time_delta_int": -1,
             "iob": "",
             "cob": "",
-             // don't update secondhand/hide/color options for this error, it could be transient
+            "bwp": "",
+            "bwpo": "",
+            // don't update secondhand/hide/color options for this error, it could be transient
      });
 }
 
@@ -174,7 +183,10 @@ function sendServerError(options) {
             "time_delta_int": -1,
             "iob": "",
             "cob": "",
+            "bwp": "",
+            "bwpo": "",
             'showsec' : false,
+            'tapbg' : false,
             'hide' : false,
             'taptime' : 3,
             'fgcolor' : 'white',
@@ -195,7 +207,10 @@ function sendUnknownError(msg) {
                 "time_delta_int": -1,
                 "iob": "",
                 "cob": "",
+                "bwp": "",
+                "bwpo": "",
                 'showsec' : false,
+                'tapbg' : false,
                 'hide' : false,
                 'taptime' : 3,
                 'fgcolor' : 'white',
@@ -413,7 +428,10 @@ function nightscout(options) {
                     "bg_times" : createNightscoutBgTimeArray(data.bgs, options.conversion /**/),
                     "iob": createIOBStr(data.bgs),
                     "cob": createCOBStr(data.bgs),
+                    "bwp": createBWPStr(data.bgs),
+                    "bwpo": createBWPOStr(data.bgs),
                     'showsec' : options.showsec,
+                    'tapbg' : options.tapbg,
                     'hide' : options.hide,
                     'taptime' : (options.taptime && isNumeric(options.taptime)) ? Number(options.taptime) : 2,
                     'fgcolor' : options.fgcolor ? options.fgcolor.toLowerCase() : "",
@@ -494,6 +512,24 @@ function createCOBStr(data) {
     if (typeof data[0].cob !== 'undefined' && data[0].cob !== null) {
         toReturn = "C:" + data[0].cob;
         // console.log("cob: " + data[0].cob);
+    }
+    return toReturn;  
+}
+    
+function createBWPStr(data) {
+    var toReturn = "";
+    if (typeof data[0].bwp !== 'undefined' && data[0].bwp !== null) {
+        toReturn = "w:" + data[0].bwp;
+        // console.log("bwp: " + data[0].bwp);
+    }
+    return toReturn;  
+}
+    
+function createBWPOStr(data) {
+    var toReturn = "";
+    if (typeof data[0].bwpo !== 'undefined' && data[0].bwpo !== null) {
+        toReturn = "o:" + data[0].bwpo;
+        // console.log("bwpo: " + data[0].bwpo);
     }
     return toReturn;  
 }
@@ -696,7 +732,10 @@ function getShareGlucoseData(sessionId, defaults, options) {
                     "bg_times" : createShareBgTimeArray(data),
                     "iob": createIOBStr(data),
                     "cob": createCOBStr(data),
+                    "bwp": createBWPStr(data),
+                    "bwpo": createBWPOStr(data),
                     'showsec' : options.showsec,
+                    'tapbg' : options.tapbg,
                     'hide' : options.hide,
                     'taptime' : (options.taptime && isNumeric(options.taptime)) ? Number(options.taptime) : 2,
                     'fgcolor' : options.fgcolor ? options.fgcolor.toLowerCase() : "",
@@ -826,6 +865,7 @@ Pebble.addEventListener("ready",
             'id' : defaultId,
             'timeline' : false,
             'showsec' : false,
+            'tapbg' : false,
             'hide' : false,
             'taptime' : 3,
             'fgcolor' : 'white',
