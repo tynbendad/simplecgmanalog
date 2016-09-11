@@ -47,7 +47,7 @@ static int is_web = 0;
 static GBitmap *icon_bitmap = NULL;
 
 static BitmapLayer * icon_layer;
-static TextLayer * bg_layer, *delta_layer, *time_delta_layer, *iob_layer, *cob_layer, *time_layer, *date_layer, *batt_layer;
+static TextLayer * bg_layer, *delta_layer, *time_delta_layer, *iob_layer, *cob_layer, *nob_layer, *time_layer, *date_layer, *batt_layer;
 
 static char last_bg[124];
 static int data_id = 99;
@@ -61,6 +61,7 @@ static char cob_str[124] = "";
 static char bwp_str[124] = "";
 static char bwpo_str[124] = "";
 static char snooze_str[124] = "";
+static char delta_str[124] = "";
 static bool old_bg = false;
 
 static int  tap_sec = 4;
@@ -389,6 +390,7 @@ static int infoCircRadius = 28;
 #define ICON_LAYER_ORIGIN_SIZE GRect(58+17, 32, 30, 30)
 #define IOB_LAYER_ORIGIN_SIZE GRect(4+17, 26, 136, 25)
 #define COB_LAYER_ORIGIN_SIZE GRect(4+17, 42, 136, 25)
+#define NOB_LAYER_ORIGIN_SIZE GRect(4+17, 40, 136, 30)
 
 #define infoCirc3 GPoint(89, 133)
 #define CHART_ORIGIN { 44+19, 109}
@@ -409,6 +411,7 @@ static int infoCircRadius = 28;
 #define ICON_LAYER_ORIGIN_SIZE GRect(58-1, 24, 30, 30)
 #define IOB_LAYER_ORIGIN_SIZE GRect(4-1, 18, 136, 25)
 #define COB_LAYER_ORIGIN_SIZE GRect(4-1, 35, 136, 25)
+#define NOB_LAYER_ORIGIN_SIZE GRect(4-1, 33, 136, 28)
 
 #define infoCirc3 GPoint(72-1, 129)
 #define CHART_ORIGIN { 44+1, 105}
@@ -419,27 +422,27 @@ static int infoCircRadius = 28;
 #endif
 
 static void update_proc(Layer * layer, GContext * ctx) {
-    if (show_tapphase1 && 
-        ((strlen(bwp_str) > 0) || (strlen(bwpo_str) > 0))) {
+    if (!show_tapphase1 && (strlen(bwpo_str) > 0)) {
         if(iob_layer)
-            text_layer_set_text(iob_layer, bwp_str);
-        if(cob_layer) {
-            if ((strncmp(cob_str, "C:0", 124) == 0) &&
-                (strlen(bwpo_str) > 0))
-                text_layer_set_text(cob_layer, cob_str);
-            else
-                text_layer_set_text(cob_layer, bwpo_str);
-        }
+            text_layer_set_text(iob_layer, "Pred");
+        if(cob_layer)
+            text_layer_set_text(cob_layer, "");
+        if(nob_layer)
+            text_layer_set_text(nob_layer, bwpo_str);
+    } else if (show_tapphase1 && !(strlen(bwpo_str) > 0)) {
+        if(iob_layer)
+            text_layer_set_text(iob_layer, iob_str);
+        if(cob_layer)
+            text_layer_set_text(cob_layer, bwp_str);
+        if(nob_layer)
+            text_layer_set_text(nob_layer, "");
     } else {
         if(iob_layer)
             text_layer_set_text(iob_layer, iob_str);
-        if(cob_layer) {
-            if ((strncmp(cob_str, "C:0", 124) == 0) &&
-                (strlen(bwpo_str) > 0))
-                text_layer_set_text(cob_layer, bwpo_str);
-            else
-                text_layer_set_text(cob_layer, cob_str);
-        }
+        if(cob_layer)
+            text_layer_set_text(cob_layer, cob_str);
+        if(nob_layer)
+            text_layer_set_text(nob_layer, "");
     }
 
     if(date_layer)
@@ -448,16 +451,19 @@ static void update_proc(Layer * layer, GContext * ctx) {
         text_layer_set_text_color(batt_layer, FOREGROUND_COLOR);
 
     if (delta_layer) {
-      if (is_snoozed()) {
+      text_layer_set_text(delta_layer, delta_str);
+      if (!show_tapphase1 && is_snoozed()) {
           int snooze_left;
-          if (alert_snooze == -1)
-            snooze_left = 99;
-          else
-            snooze_left = (alert_snooze - time(NULL)) / 60;
-          if (snooze_left < 0)
-            snooze_left = 0;
-          snprintf(snooze_str, 12, "z:%dm", snooze_left);
-          text_layer_set_text(delta_layer, snooze_str);
+          if (alert_snooze == -1) {
+              snooze_left = 99;
+              text_layer_set_text(delta_layer, "zzz");
+          } else {
+              snooze_left = (alert_snooze - time(NULL)) / 60;
+              if (snooze_left < 0)
+                  snooze_left = 0;
+              snprintf(snooze_str, 12, "z:%dm", snooze_left);
+              text_layer_set_text(delta_layer, snooze_str);
+          }
         }
     }
 
@@ -591,6 +597,7 @@ static void update_proc(Layer * layer, GContext * ctx) {
         chart_layer_set_plot_color(chart_layer, COMP3_FGCOLOR);
     text_layer_set_text_color(iob_layer, COMP2_FGCOLOR);
     text_layer_set_text_color(cob_layer, COMP2_FGCOLOR);
+    text_layer_set_text_color(nob_layer, COMP2_FGCOLOR);
 
     graphics_context_set_stroke_color(ctx, FOREGROUND_COLOR); 
     graphics_context_set_stroke_width(ctx, 1);
@@ -829,7 +836,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
                 
             case CGM_EGV_DELTA_KEY:;
                 if(delta_layer)
-                    text_layer_set_text(delta_layer, new_tuple->value->cstring);
+                    strncpy(delta_str, new_tuple->value->cstring, 124);
                 old_bg = false;
                 if (strncmp(new_tuple->value->cstring, "old", 4) == 0) {
                   old_bg = true;
@@ -977,7 +984,7 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
     
     // Redraw
     if (s_canvas_layer) {
-        analog_mode(curBG, curFG, 0);
+        update_hand_color();
 
         //load_chart_1();
         time_t t = time(NULL);
@@ -1078,14 +1085,15 @@ static void window_load(Window * window) {
     layer_add_child(window_layer, s_canvas_layer);
 
     analog_init(s_canvas_layer);
-    analog_mode(curBG, curFG, 0);
-
+    update_hand_color();
+    
     int batteryoffset = 30;
     icon_layer = bitmap_layer_create(ICON_LAYER_ORIGIN_SIZE);
     delta_layer = text_layer_create(DELTA_LAYER_ORIGIN_SIZE);
     time_delta_layer = text_layer_create(TIME_DELTA_LAYER_ORIGIN_SIZE);
     iob_layer = text_layer_create(IOB_LAYER_ORIGIN_SIZE);
     cob_layer = text_layer_create(COB_LAYER_ORIGIN_SIZE);
+    nob_layer = text_layer_create(NOB_LAYER_ORIGIN_SIZE);
     time_layer = text_layer_create(GRect(0, 1, 90, bgoffset+25));
     date_layer = text_layer_create(GRect(90, 6, 54, bgoffset+25));  
     batt_layer = text_layer_create(BATT_LAYER_ORIGIN_SIZE);  
@@ -1096,6 +1104,7 @@ static void window_load(Window * window) {
     text_layer_set_text_alignment(time_delta_layer, GTextAlignmentCenter); 
     text_layer_set_text_alignment(iob_layer, GTextAlignmentCenter); 
     text_layer_set_text_alignment(cob_layer, GTextAlignmentCenter); 
+    text_layer_set_text_alignment(nob_layer, GTextAlignmentCenter); 
     text_layer_set_text_alignment(delta_layer, GTextAlignmentCenter);  
 
     bitmap_layer_set_background_color(icon_layer, GColorClear);
@@ -1135,6 +1144,11 @@ static void window_load(Window * window) {
     text_layer_set_background_color(cob_layer, GColorClear);
     text_layer_set_font(cob_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
     layer_add_child(s_canvas_layer, text_layer_get_layer(cob_layer)); 
+
+    text_layer_set_text_color(nob_layer, GColorWhite);
+    text_layer_set_background_color(nob_layer, GColorClear);
+    text_layer_set_font(nob_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
+    layer_add_child(s_canvas_layer, text_layer_get_layer(nob_layer)); 
 
     text_layer_set_text_color(time_layer, GColorWhite);
     text_layer_set_background_color(time_layer, GColorClear);

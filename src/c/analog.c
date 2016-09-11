@@ -98,12 +98,13 @@ void analog_window_load(Layer *window_layer) {
 
   // center of PEBBLE TIME display: 72, 84 (size: 144x168); center of ROUND display: 90, 90 (size: 180x180)
   s_day_label = text_layer_create(PBL_IF_ROUND_ELSE(
-    GRect(63+63, 114-37-4, 27, 20),
-    GRect(46+50, 114-42-7, 27, 20)));
+    GRect(63+53, 114-37-9, 33, 26),
+    GRect(46+40, 114-42-12, 33, 26)));
   text_layer_set_text(s_day_label, s_day_buffer);
   text_layer_set_background_color(s_day_label, GColorClear);
   text_layer_set_text_color(s_day_label, FOREGROUND_COLOR);
-  text_layer_set_font(s_day_label, fonts_get_system_font(FONT_KEY_GOTHIC_18));
+  text_layer_set_font(s_day_label, fonts_get_system_font(FONT_KEY_GOTHIC_24));
+  text_layer_set_text_alignment(s_day_label, GTextAlignmentRight); 
 
   layer_add_child(s_date_layer, text_layer_get_layer(s_day_label));
 
@@ -114,6 +115,7 @@ void analog_window_load(Layer *window_layer) {
   text_layer_set_background_color(s_num_label, GColorClear);
   text_layer_set_text_color(s_num_label, FOREGROUND_COLOR);
   text_layer_set_font(s_num_label, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
+  text_layer_set_text_alignment(s_num_label, GTextAlignmentLeft); 
 
   layer_add_child(s_date_layer, text_layer_get_layer(s_num_label));
 

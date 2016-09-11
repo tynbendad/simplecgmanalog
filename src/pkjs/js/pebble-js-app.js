@@ -45,7 +45,9 @@ function fetchCgmData(id) {
             options.api = options.api.replace("/pebble/","");
             options.api = options.api.replace("/pebble","");
 
-            if(options.raw) {
+            if (!(options.profile && options.profile.carbratio0)) {
+                getNightscoutProfile(options);
+            } else if(options.raw) {
                 getNightscoutCalRecord(options);
             } else {
                 nightscout(options); 
@@ -220,6 +222,51 @@ function sendUnknownError(msg) {
     }); 
 }
 
+function getNightscoutProfile(options){
+
+    var url = options.api + "/api/v1/profile.json?count=1";
+    var http = new XMLHttpRequest();
+    http.open("GET", url, true);
+    http.onload = function (e) {
+             
+        if (http.status == 200) {
+            var data = JSON.parse(http.responseText);
+
+            if (data.length === 0) {               
+                nightscout(options);
+            } else { 
+                options.profile = {
+                    'carbratio0' : parseInt(data[0].carbratio[0].value, 10),
+                    'carbs_hr' : parseInt(data[0].carbs_hr, 10),
+                    'sens' : parseInt(data[0].sens[0].value, 10),
+                };
+                console.log("profile: carbratio0: " + options.profile.carbratio0 + ", carbs_hr: " + options.profile.carbs_hr + ", sens: " + options.profile.sens);
+                if(options.raw) {
+                    getNightscoutCalRecord(options);
+                } else {
+                    nightscout(options); 
+                }
+            }
+        } else {
+           sendUnknownError("data err");
+        }
+    };
+    
+    http.onerror = function () {        
+        sendServerError(options);
+    };
+    http.ontimeout = function () {
+        sendTimeOutError(options);
+    };
+
+    try {
+        http.send();
+    }
+    catch (e) {
+        sendUnknownError("invalid url");
+    }
+}
+
 function getNightscoutCalRecord(options){
 
     var url = options.api + "/api/v1/entries/cal.json?count=1";
@@ -260,8 +307,6 @@ function getNightscoutCalRecord(options){
     catch (e) {
         sendUnknownError("invalid url");
     }
-    
-    
 }
 
 //parse and use standard NS data
@@ -298,8 +343,30 @@ function nightscout(options) {
                 // console.log("bgs[0].sgv: " + data.bgs[0].sgv);
                 // console.log("bgs[0].iob: " + data.bgs[0].iob);
                 
-                 var body = 'Trend: ' + data.bgs[0].direction + '\nNoise: ' + noiseIntToNoiseString(data.bgs[0].noise)
-                    + '\nRaw(U): ' + data.bgs[0].unfiltered;
+                var body;
+                if (options.profile &&
+                    options.profile.carbratio0 &&
+                    typeof options.profile.carbratio0 !== 'undefined' &&
+                    options.profile.carbratio0 !== null &&
+                    (parseFloat(options.profile.carbratio0) > 0) &&
+                    typeof options.profile.sens !== 'undefined' &&
+                    options.profile.sens !== null) {
+                    if (data.bgs[0].noise && data.bgs[0].unfiltered) {
+                        body = 'Trend: ' + data.bgs[0].direction + '\nNoise: ' + noiseIntToNoiseString(data.bgs[0].noise)
+                        + '\nRaw(U): ' + data.bgs[0].unfiltered + '\nCarb ratio: ' + options.profile.carbratio0.toString()
+                        + '\nIns sens: ' + options.profile.sens.toString();
+                    } else {
+                        body = 'Trend: ' + data.bgs[0].direction + '\nCarb ratio: ' + options.profile.carbratio0.toString()
+                        + '\nIns sens: ' + options.profile.sens.toString();
+                    }
+                } else {
+                    if (data.bgs[0].noise && data.bgs[0].unfiltered) {
+                        body = 'Trend: ' + data.bgs[0].direction + '\nNoise: ' + noiseIntToNoiseString(data.bgs[0].noise)
+                        + '\nRaw(U): ' + data.bgs[0].unfiltered;
+                    } else {
+                        body = 'Trend: ' + data.bgs[0].direction;
+                    }
+                }
                 
                 //console.log("xdrip: " + data[0].device.indexOf("xDrip"));
                 var deltaSuffix = "";
@@ -429,7 +496,7 @@ function nightscout(options) {
                     "iob": createIOBStr(data.bgs),
                     "cob": createCOBStr(data.bgs),
                     "bwp": createBWPStr(data.bgs),
-                    "bwpo": createBWPOStr(data.bgs),
+                    "bwpo": createBWPOStr(data.bgs, options),
                     'showsec' : options.showsec,
                     'tapbg' : options.tapbg,
                     'hide' : options.hide,
@@ -502,16 +569,30 @@ function createNightscoutBgTimeArray(data, conversion) {
 
 function createIOBStr(data) {
     var toReturn = "";
-    if (typeof data[0].iob !== 'undefined' && data[0].iob !== null)
-        toReturn = "I:" + data[0].iob;
+    if (typeof data[0].iob !== 'undefined' && data[0].iob !== null) {
+        if ((data[0].iob == "0") &&
+            (typeof data[0].cob == 'undefined' ||
+             (data[0].cob === null) ||
+             data[0].cob == "0")) {
+            toReturn = "WANW";
+        } else {
+            toReturn = "I:" + data[0].iob;
+        }
+    }
     return toReturn;  
 }
 
 function createCOBStr(data) {
     var toReturn = "";
     if (typeof data[0].cob !== 'undefined' && data[0].cob !== null) {
-        toReturn = "C:" + data[0].cob;
-        // console.log("cob: " + data[0].cob);
+        if ((data[0].cob == "0") &&
+            (typeof data[0].iob == 'undefined' ||
+             (data[0].iob === null) ||
+             data[0].iob == "0")) {
+            toReturn = "";
+        } else {
+            toReturn = "C:" + data[0].cob;
+        }
     }
     return toReturn;  
 }
@@ -525,12 +606,35 @@ function createBWPStr(data) {
     return toReturn;  
 }
     
-function createBWPOStr(data) {
+function createBWPOStr(data, options) {
     var toReturn = "";
-    if (typeof data[0].bwpo !== 'undefined' && data[0].bwpo !== null) {
+    if (typeof data[0].sgv !== 'undefined' && data[0].sgv !== null &&
+        typeof data[0].cob !== 'undefined' && data[0].cob !== null &&
+        typeof data[0].iob !== 'undefined' && data[0].iob !== null &&
+        (data[0].cob > 0 || data[0].iob > 0) &&
+        options.profile &&
+        options.profile.carbratio0 &&
+        typeof options.profile.carbratio0 !== 'undefined' && options.profile.carbratio0 !== null && (options.profile.carbratio0 > 0) &&
+        typeof options.profile.sens !== 'undefined' && options.profile.sens !== null) {
+        var mybwpo = parseFloat(data[0].sgv) + (data[0].cob * options.profile.sens / options.profile.carbratio0) - (data[0].iob * options.profile.sens);
+        toReturn = mybwpo.toFixed();
+/*
+    if (typeof data[0].bwp !== 'undefined' && data[0].bwp !== null &&
+        typeof data[0].bwpo !== 'undefined' && data[0].bwpo !== null) {
         toReturn = "o:" + data[0].bwpo;
-        // console.log("bwpo: " + data[0].bwpo);
+ */
+/*
+    } else {
+        console.log("createBWPOStr: " + 
+                    typeof data[0].sgv !== 'undefined' + data[0].sgv !== null + 
+                    typeof data[0].cob !== 'undefined' + data[0].cob !== null +
+                    typeof data[0].iob !== 'undefined' + data[0].iob !== null +
+                    (data[0].cob > 0 || data[0].iob > 0) +
+                    typeof options.profile.carbratio0 !== 'undefined' + options.profile.carbratio0 !== null + (options.profile.carbratio0 > 0) +
+                    typeof options.profile.sens !== 'undefined' + options.profile.sens !== null);
+ */
     }
+    // console.log("bwpo: " + toReturn);
     return toReturn;  
 }
     
@@ -730,10 +834,10 @@ function getShareGlucoseData(sessionId, defaults, options) {
                     "time_delta_int": timeDeltaMinutes,
                     "bgs" : createShareBgArray(data),
                     "bg_times" : createShareBgTimeArray(data),
-                    "iob": createIOBStr(data),
-                    "cob": createCOBStr(data),
-                    "bwp": createBWPStr(data),
-                    "bwpo": createBWPOStr(data),
+                    "iob": "",
+                    "cob": "",
+                    "bwp": "",
+                    "bwpo": "",
                     'showsec' : options.showsec,
                     'tapbg' : options.tapbg,
                     'hide' : options.hide,
