@@ -235,11 +235,24 @@ function getNightscoutProfile(options){
             if (data.length === 0) {               
                 nightscout(options);
             } else { 
-                options.profile = {
-                    'carbratio0' : parseInt(data[0].carbratio[0].value, 10),
-                    'carbs_hr' : parseInt(data[0].carbs_hr, 10),
-                    'sens' : parseInt(data[0].sens[0].value, 10),
-                };
+                if (data[0] &&
+                    data[0].carbratio &&
+                    data[0].carbratio[0] &&
+                    data[0].carbratio[0].value &&
+                    data[0].carbs_hr &&
+                    data[0].sens &&
+                    data[0].sens[0] &&
+                    data[0].sens[0].value) {
+                    options.profile = {
+                        'carbratio0' : parseInt(data[0].carbratio[0].value, 10),
+                        'carbs_hr' : parseInt(data[0].carbs_hr, 10),
+                        'sens' : parseInt(data[0].sens[0].value, 10),
+                    };
+                } else {
+                    options.profile = {
+                        'carbratio0' : 0,    // define this so we don't try to read profile again, but don't define sens so we don't try to predict
+                    };                    
+                }
                 console.log("profile: carbratio0: " + options.profile.carbratio0 + ", carbs_hr: " + options.profile.carbs_hr + ", sens: " + options.profile.sens);
                 if(options.raw) {
                     getNightscoutCalRecord(options);
